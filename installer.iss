@@ -9,8 +9,8 @@ AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppMutex=PasteToExplorer
-CloseApplications=yes
+AppMutex=PasteToExplorer,Global\PasteToExplorer
+CloseApplications=force
 RestartApplications=no
 OutputDir=.
 OutputBaseFilename=PasteToExplorer_Setup_{#MyAppVersion}
@@ -54,22 +54,41 @@ Name: "startup"; Description: "Run at Windows startup"; GroupDescription: "Start
 Filename: "{app}\{#MyAppExeName}"; Description: "Run {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{sys}\taskkill.exe"; Parameters: "/f /im {#MyAppExeName}"; Flags: runhidden
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im {#MyAppExeName}"; Flags: runhidden runascurrentuser
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "PasteToExplorer"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: startup
 
 [Code]
-function InitializeSetup: Boolean;
+function InitializeSetup(): Boolean;
 var V: TWindowsVersion;
+    RC: Integer;
 begin
   Result := IsWin64;
-  if not IsWin64 then MsgBox('64-bit Windows required. Setup will exit.', mbError, MB_OK)
-  else begin
-    GetWindowsVersionEx(V);
-    if V.Major < 10 then begin
-      MsgBox('Windows 10 or later required. Setup will exit.', mbError, MB_OK);
-      Result := False;
-    end;
+  if not IsWin64 then begin
+    MsgBox('64-bit Windows required. Setup will exit.', mbError, MB_OK);
+    Exit;
   end;
+  GetWindowsVersionEx(V);
+  if V.Major < 10 then begin
+    MsgBox('Windows 10 or later required. Setup will exit.', mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+  // Force-kill any running instance BEFORE checking mutex/copying files
+  Exec(ExpandConstant('{sys}\taskkill.exe'),
+       '/F /IM ' + '{#MyAppExeName}',
+       '', SW_HIDE, ewWaitUntilTerminated, RC);
+  Sleep(500);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var RC: Integer;
+begin
+  // Second safety net: kill again right before file copy
+  Exec(ExpandConstant('{sys}\taskkill.exe'),
+       '/F /IM ' + '{#MyAppExeName}',
+       '', SW_HIDE, ewWaitUntilTerminated, RC);
+  Sleep(300);
+  Result := '';
 end;
