@@ -30,7 +30,7 @@ No need to manually save images. Just paste as if pasting files.
 
 ## Download
 
-[**Download Latest Installer**](https://github.com/zxj95121/PasteToExplorer/releases/latest)
+[**Download v1.0.0 Installer**](https://github.com/zxj95121/PasteToExplorer/releases/tag/v1.0.0)
 
 Requires: **Windows 10 x64 or later**
 
